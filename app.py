@@ -1,13 +1,7 @@
-# app.py
-# Requirements: pip install streamlit pandas
-
 import datetime
 import streamlit as st
 import pandas as pd
 
-# ---------------------------------------------------------
-# 1. Page Configuration & Custom Styling
-# ---------------------------------------------------------
 st.set_page_config(
     page_title="RooTun | AI Compliance Concierge for SMEs",
     page_icon="🛡️",
@@ -25,9 +19,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ---------------------------------------------------------
-# 2. State Management (Time Travel & Inflow Ledger)
-# ---------------------------------------------------------
 if "sim_days" not in st.session_state:
     st.session_state.sim_days = 0
 
@@ -45,16 +36,12 @@ BUSINESS_PROFILE = {
 base_date = datetime.date(2026, 10, 6)
 current_date = base_date + datetime.timedelta(days=st.session_state.sim_days)
 
-# ---------------------------------------------------------
-# 3. Decision Logic & Rules Engine (Determinism over LLM)
-# ---------------------------------------------------------
 months_active = (
     (current_date.year - BUSINESS_PROFILE["start_date"].year) * 12
     + (current_date.month - BUSINESS_PROFILE["start_date"].month)
     + 1
 )
 
-# Baseline calculated revenue
 baseline_revenue = BUSINESS_PROFILE["monthly_revenue"] * months_active
 extra_revenue = (st.session_state.sim_days // 7) * 45000
 total_revenue = baseline_revenue + extra_revenue
@@ -71,9 +58,6 @@ else:
     days_to_threshold = 0
     est_vat_date = current_date
 
-# ---------------------------------------------------------
-# 4. Sidebar Navigation
-# ---------------------------------------------------------
 with st.sidebar:
     st.title("🛡️ RooTun (รู้ทัน)")
     st.caption("AI Compliance Concierge for SMEs")
@@ -95,16 +79,12 @@ with st.sidebar:
     st.write(f"👥 จำนวนพนักงาน: {BUSINESS_PROFILE['employees']} คน")
     st.write(f"📅 วันที่ระบบ: **{current_date.strftime('%d %b %Y')}**")
 
-# ---------------------------------------------------------
-# 5. Page: Executive Dashboard
-# ---------------------------------------------------------
 if page == "📊 Executive Dashboard":
     st.title("SME Compliance Dashboard")
     st.markdown(
         "ระบบเฝ้าระวังความเสี่ยงทางภาษีและภาระหน้าที่ตามกฎหมายอัตโนมัติ"
     )
 
-    # Top KPI Metrics
     col1, col2, col3 = st.columns(3)
     with col1:
         st.metric(
@@ -176,7 +156,7 @@ if page == "📊 Executive Dashboard":
             st.error(
                 """
                 **ประกาศใหม่จากราชกิจจานุเบกษา: ปรับเพดานค่าจ้างคำนวณเงินสมทบประกันสังคม (มีผล 1 ม.ค. 2569)**
-                * **การตีความทางกฎหมาย (Rule):** เพดานค่าจ้าง 15,000 $\rightarrow$ 17,500 บาท (สมทบสูงสุด 750 $\rightarrow$ 875 บาท/คน/เดือน)
+                * 🗄️ **Rule Database Version:** `SSO-Rule-v2026.1` (อัปเดตเพื่อใช้กับงวดปี 2569)
                 * **ผลกระทบต่อนิติบุคคล:** พนักงาน 3 ใน 8 คนมีเงินเดือนเกิน 15,000 บาท
                 * **ภาระต้นทุนนายจ้างเพิ่ม:** +375 บาท/เดือน (+4,500 บาท/ปี)
                 """
@@ -192,32 +172,28 @@ if page == "📊 Executive Dashboard":
 
     with dash_col2:
         st.subheader("📥 Smart Compliance Inbox")
-        st.caption("AI ตรวจจับธุรกรรมจาก Statement และคัดกรองภาษีหัก ณ ที่จ่าย")
+        st.caption("AI ตรวจจับผ่านการเชื่อมต่อธนาคาร (Bank Sync) และระบบ OCR")
+        
+        st.file_uploader("📎 อัปโหลดรูปถ่ายใบเสร็จ / สัญญาเช่า เพื่อสกัดข้อมูล", type=["jpg", "png", "pdf"])
+        st.markdown("---")
+        
+        with st.expander("🟢 ค่าน้ำ/ค่าไฟออฟฟิศ (AI Confidence: 98%)", expanded=False):
+            st.write("รายการ: จ่ายการไฟฟ้านครหลวง 4,500 บาท")
+            st.success("บันทึกเป็นค่าใช้จ่ายบริษัทอัตโนมัติ (ไม่ต้องยืนยัน)")
 
-        with st.expander("🔍 ตรวจพบรายการเงินโอนต้องสงสัย", expanded=True):
-            st.markdown(
-                "**รายการ:** โอน 50,000 บาท ให้ *บจก. สุขุมวิท พร็อพเพอร์ตี้*"
-            )
-            st.markdown(
-                "**บันทึกช่วยจำ:** `INV-2026-10 Office Rent (ค่าเช่าออฟฟิศ)`"
-            )
-            st.info(
-                "**AI ข้อเสนอแนะ:** เข้าข่าย 'ค่าเช่าอสังหาริมทรัพย์' นิติบุคคลจ่ายให้นิติบุคคล ต้องหัก ณ ที่จ่าย **5% (ภ.ง.ด.53)** เป็นเงิน 2,500 บาท"
-            )
-
+        with st.expander("🟡 ตรวจพบรายการเงินโอนต้องสงสัย (AI Confidence: 65%)", expanded=True):
+            st.markdown("**รายการ:** โอน 50,000 บาท ให้ *บจก. สุขุมวิท พร็อพเพอร์ตี้*")
+            st.markdown("**บันทึกช่วยจำ:** `INV-2026-10 Office Rent`")
+            st.warning("⚠️ **AI Warning:** ข้อมูลก้ำกึ่งระหว่างค่าใช้จ่ายส่วนตัวหรือค่าเช่าบริษัท กรุณายืนยัน")
+            
             choice = st.radio(
-                "ยืนยันการจัดหมวดหมู่นี้?",
-                ["รอตรวจสอบ", "ยืนยัน (สร้างหนังสือ 50 ทวิ)", "ยกเว้น (เงินประกัน)"],
+                "การจัดหมวดหมู่:",
+                ["รอตรวจสอบ", "ใช่: ค่าเช่า (สร้าง ภ.ง.ด.53)", "ไม่ใช่: เงินส่วนตัว (เพิกเฉย)"],
                 key="rent_confirm",
             )
-            if choice == "ยืนยัน (สร้างหนังสือ 50 ทวิ)":
-                st.success(
-                    "✅ บันทึก: กำหนดยื่นแบบ ภ.ง.ด.53 ภายใน 15 พ.ย. พร้อมสร้างร่างหนังสือรับรอง 50 ทวิ เรียบร้อยแล้ว"
-                )
+            if choice == "ใช่: ค่าเช่า (สร้าง ภ.ง.ด.53)":
+                st.success("✅ บันทึก: เตรียมยื่นแบบ ภ.ง.ด.53 ภายใน 15 พ.ย.")
 
-# ---------------------------------------------------------
-# 6. Page: Corporate Setup Planner
-# ---------------------------------------------------------
 elif page == "📋 Corporate Setup Planner":
     st.title("Corporate Setup & License Planner")
     st.markdown(
@@ -269,9 +245,6 @@ elif page == "📋 Corporate Setup Planner":
 
             st.button("📥 ดาวน์โหลดชุดเอกสารและแบบฟอร์มที่กรอกอัตโนมัติ (ZIP)")
 
-# ---------------------------------------------------------
-# 7. Page: Demo Simulation (Time Travel)
-# ---------------------------------------------------------
 elif page == "⏱️ Demo Simulation (Time Travel)":
     st.title("Simulation & Fast-Forward Control")
     st.markdown(
