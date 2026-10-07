@@ -1,143 +1,301 @@
-import streamlit as st
+# app.py
+# Requirements: pip install streamlit pandas
+
 import datetime
+import streamlit as st
+import pandas as pd
 
+# ---------------------------------------------------------
 # 1. Page Configuration & Custom Styling
-st.set_page_config(page_title="RooTun | AI Compliance", page_icon="🛡️", layout="wide")
+# ---------------------------------------------------------
+st.set_page_config(
+    page_title="RooTun | AI Compliance Concierge for SMEs",
+    page_icon="🛡️",
+    layout="wide",
+)
 
-st.markdown("""
+st.markdown(
+    """
 <style>
-    .reportview-container .main .block-container { max-width: 1200px; }
-    div[data-testid="stMetricValue"] { font-size: 28px; color: #1f77b4; }
-    hr { margin-top: 0.5em; margin-bottom: 0.5em; }
+    .main .block-container { max-width: 1200px; padding-top: 2rem; }
+    div[data-testid="stMetricValue"] { font-size: 26px; color: #1e3a8a; }
+    hr { margin-top: 1rem; margin-bottom: 1rem; }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
-# 2. State Management for Demo (Keeps track of simulated time)
-if 'sim_days' not in st.session_state:
+# ---------------------------------------------------------
+# 2. State Management (Time Travel & Inflow Ledger)
+# ---------------------------------------------------------
+if "sim_days" not in st.session_state:
     st.session_state.sim_days = 0
 
+if "confirmed_items" not in st.session_state:
+    st.session_state.confirmed_items = {}
+
 BUSINESS_PROFILE = {
-    "name": "เชียงใหม่ คอฟฟี่สเปซ",
-    "type": "คาเฟ่ / ร้านอาหาร",
+    "name": "BKK Creative Agency Co., Ltd.",
+    "type": "นิติบุคคลบริการ (B2B Service / Agency)",
     "start_date": datetime.date(2026, 1, 1),
     "monthly_revenue": 220000,
-    "employees": 5
+    "employees": 8,
 }
 
 base_date = datetime.date(2026, 10, 6)
 current_date = base_date + datetime.timedelta(days=st.session_state.sim_days)
 
-# 3. Core Logic
-months_active = (current_date.year - BUSINESS_PROFILE["start_date"].year) * 12 + (current_date.month - BUSINESS_PROFILE["start_date"].month) + 1
-total_revenue = BUSINESS_PROFILE["monthly_revenue"] * months_active
-threshold = 1800000
-is_over_vat = total_revenue >= threshold
-time_left_days = int((threshold / BUSINESS_PROFILE["monthly_revenue"]) * 30.44) - (current_date - BUSINESS_PROFILE["start_date"]).days
+# ---------------------------------------------------------
+# 3. Decision Logic & Rules Engine (Determinism over LLM)
+# ---------------------------------------------------------
+months_active = (
+    (current_date.year - BUSINESS_PROFILE["start_date"].year) * 12
+    + (current_date.month - BUSINESS_PROFILE["start_date"].month)
+    + 1
+)
 
+# Baseline calculated revenue
+baseline_revenue = BUSINESS_PROFILE["monthly_revenue"] * months_active
+extra_revenue = (st.session_state.sim_days // 7) * 45000
+total_revenue = baseline_revenue + extra_revenue
+
+VAT_THRESHOLD = 1800000
+is_over_vat = total_revenue >= VAT_THRESHOLD
+
+days_passed = (current_date - BUSINESS_PROFILE["start_date"]).days
+daily_burn = total_revenue / max(1, days_passed)
+if not is_over_vat and daily_burn > 0:
+    days_to_threshold = int((VAT_THRESHOLD - total_revenue) / daily_burn)
+    est_vat_date = current_date + datetime.timedelta(days=days_to_threshold)
+else:
+    days_to_threshold = 0
+    est_vat_date = current_date
+
+# ---------------------------------------------------------
 # 4. Sidebar Navigation
+# ---------------------------------------------------------
 with st.sidebar:
-    st.title("🛡️ RooTun")
-    st.caption("AI Compliance Concierge")
-    st.markdown("___")
-    
-    page = st.radio("MAIN MENU", ["📊 Dashboard", "📝 License Planner", "⚙️ Demo Settings"])
-    
-    st.markdown("___")
-    st.caption("BUSINESS PROFILE")
-    st.write(f"🏢 **{BUSINESS_PROFILE['name']}**")
-    st.write(f"👥 พนักงาน: {BUSINESS_PROFILE['employees']} คน")
-    st.write(f"📅 วันที่ระบบ: {current_date.strftime('%d %b %Y')}")
+    st.title("🛡️ RooTun (รู้ทัน)")
+    st.caption("AI Compliance Concierge for SMEs")
+    st.markdown("---")
 
-# 5. Dashboard Page
-if page == "📊 Dashboard":
-    st.title("Overview Dashboard")
-    st.markdown("ภาพรวมสถานะภาษีและข้อกําหนดทางกฎหมายของร้านคุณ")
-    
-    # Top Level Metrics
+    page = st.radio(
+        "NAVIGATION",
+        [
+            "📊 Executive Dashboard",
+            "📋 Corporate Setup Planner",
+            "⏱️ Demo Simulation (Time Travel)",
+        ],
+    )
+
+    st.markdown("---")
+    st.caption("COMPANY CONTEXT")
+    st.write(f"🏢 **{BUSINESS_PROFILE['name']}**")
+    st.write(f"💼 ประเภท: {BUSINESS_PROFILE['type']}")
+    st.write(f"👥 จำนวนพนักงาน: {BUSINESS_PROFILE['employees']} คน")
+    st.write(f"📅 วันที่ระบบ: **{current_date.strftime('%d %b %Y')}**")
+
+# ---------------------------------------------------------
+# 5. Page: Executive Dashboard
+# ---------------------------------------------------------
+if page == "📊 Executive Dashboard":
+    st.title("SME Compliance Dashboard")
+    st.markdown(
+        "ระบบเฝ้าระวังความเสี่ยงทางภาษีและภาระหน้าที่ตามกฎหมายอัตโนมัติ"
+    )
+
+    # Top KPI Metrics
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric(label="ยอดขายสะสมปีนี้ (YTD)", value=f"฿{total_revenue:,.0f}", delta=f"+฿{BUSINESS_PROFILE['monthly_revenue']:,.0f} เดือนนี้")
+        st.metric(
+            label="ยอดขายสะสม YTD (เฉพาะรายรับที่ต้องคิดภาษี)",
+            value=f"฿{total_revenue:,.0f}",
+            delta=f"+฿{BUSINESS_PROFILE['monthly_revenue']:,.0f} เดือนนี้",
+        )
     with col2:
         if is_over_vat:
-            st.metric(label="สถานะ VAT", value="เกินเกณฑ์ 1.8M", delta="- ต้องดำเนินการทันที", delta_color="inverse")
+            st.metric(
+                label="สถานะเกณฑ์จด VAT (1.8 ล้านบาท)",
+                value="🚨 เกินเกณฑ์แล้ว",
+                delta="- ยื่น ภ.พ.01 ภายใน 30 วัน",
+                delta_color="inverse",
+            )
         else:
-            st.metric(label="สถานะ VAT", value="ปลอดภัย", delta=f"คาดว่าจะถึงเกณฑ์ใน {max(0, time_left_days)} วัน", delta_color="normal")
+            st.metric(
+                label="สถานะเกณฑ์จด VAT (1.8 ล้านบาท)",
+                value=f"อีก ~{days_to_threshold} วัน",
+                delta=f"คาดถึงเกณฑ์: {est_vat_date.strftime('%d %b %Y')}",
+                delta_color="normal",
+            )
     with col3:
-        st.metric(label="เอกสารรอดำเนินการ", value="1 รายการ", delta="หัก ณ ที่จ่าย", delta_color="off")
+        st.metric(
+            label="ภาระภาษีหัก ณ ที่จ่าย รอยืนยัน",
+            value="1 รายการ",
+            delta="ค่าเช่าสำนักงาน (ภ.ง.ด.53)",
+            delta_color="off",
+        )
 
-    st.markdown("___")
-    
-    # Main Dashboard Area
-    main_col1, main_col2 = st.columns([1.5, 1])
-    
-    with main_col1:
-        st.subheader("📡 VAT Radar")
-        st.progress(min(total_revenue / threshold, 1.0))
-        
+    st.markdown("---")
+
+    dash_col1, dash_col2 = st.columns([1.6, 1])
+
+    with dash_col1:
+        st.subheader("📡 VAT Radar & Threshold Forecast")
+        vat_progress = min(total_revenue / VAT_THRESHOLD, 1.0)
+        st.progress(vat_progress)
+
         if is_over_vat:
-            st.error("🚨 **ยอดขายเกิน 1.8 ล้านบาทแล้ว!**\n\nระบบคำนวณว่าคุณอาจโดนค่าปรับสูงสุด 572,000 บาท หากไม่จดทะเบียน ภ.พ.01 ภายใน 30 วัน")
-            st.button("📄 สร้างฟอร์ม ภ.พ.01 อัตโนมัติ", type="primary")
-        elif time_left_days <= 45:
-            st.warning(f"⚠️ **ใกล้ถึงเกณฑ์ VAT (อีกประมาณ {time_left_days} วัน)**\n\nเตรียมเอกสารจดทะเบียน ภ.พ.01 ล่วงหน้าเพื่อหลีกเลี่ยงเบี้ยปรับ")
-            st.button("เตรียมเอกสารล่วงหน้า", type="secondary")
+            st.error(
+                """
+                **🚨 ยอดขายของคุณเกิน 1.8 ล้านบาทแล้ว!**
+                * **ภาระผูกพัน:** ต้องยื่นคำขอจดทะเบียนภาษีมูลค่าเพิ่ม (ภ.พ.01) ภายใน 30 วัน
+                * **ความเสี่ยงค่าปรับหากละเลย 12 เดือน:** เบี้ยปรับ 2 เท่า + เงินเพิ่ม 1.5%/เดือน $\approx$ **572,000 บาท**
+                """
+            )
+            st.button(
+                "⚡ ดึงข้อมูลบริษัทและสร้างร่าง ภ.พ.01 อัตโนมัติ",
+                type="primary",
+            )
+        elif days_to_threshold <= 45:
+            st.warning(
+                f"""
+                **⚠️ สัญญาณเตือน: คาดว่าจะถึงเกณฑ์ 1.8M ในวันที่ {est_vat_date.strftime('%d %b %Y')}**
+                * ระบบแนะนำให้จัดเตรียมเอกสารสัญญาเช่าสำนักงาน และแผนที่ตั้งบริษัทไว้ล่วงหน้า
+                """
+            )
+            st.button("📄 เริ่มต้นเตรียมชุดเอกสารล่วงหน้า", type="secondary")
         else:
-            st.success("✅ **สถานะยอดขายปลอดภัย** ยังไม่ต้องดำเนินการเกี่ยวกับภาษีมูลค่าเพิ่ม")
+            st.success(
+                f"✅ **สถานะปลอดภัย:** อัตราการเติบโตปัจจุบันคาดว่าจะถึงเกณฑ์ประมาณวันที่ {est_vat_date.strftime('%d %b %Y')}"
+            )
 
         st.markdown("<br>", unsafe_allow_html=True)
-        
-        st.subheader("🔔 Regulation Watch")
+
+        st.subheader("🔔 Regulation Watch (เฝ้าระวังประกาศกฎหมายใหม่)")
         if current_date >= datetime.date(2026, 12, 1):
-            st.error("**ประกาศใหม่: ปรับเพดานเงินสมทบประกันสังคม (มีผล 1 ม.ค. 2569)**")
-            st.markdown("""
-            - **ผลกระทบต่อร้านคุณ:** พนักงาน 2 คนได้รับผลกระทบ
-            - **ต้นทุนนายจ้างเพิ่ม:** 2,100 บาท/ปี
-            """)
-            st.button("อัปเดตระบบ Payroll อัตโนมัติ")
+            st.error(
+                """
+                **ประกาศใหม่จากราชกิจจานุเบกษา: ปรับเพดานค่าจ้างคำนวณเงินสมทบประกันสังคม (มีผล 1 ม.ค. 2569)**
+                * **การตีความทางกฎหมาย (Rule):** เพดานค่าจ้าง 15,000 $\rightarrow$ 17,500 บาท (สมทบสูงสุด 750 $\rightarrow$ 875 บาท/คน/เดือน)
+                * **ผลกระทบต่อนิติบุคคล:** พนักงาน 3 ใน 8 คนมีเงินเดือนเกิน 15,000 บาท
+                * **ภาระต้นทุนนายจ้างเพิ่ม:** +375 บาท/เดือน (+4,500 บาท/ปี)
+                """
+            )
+            if st.button("✅ ปรับปรุงสูตรคำนวณ Payroll และแจ้งเตือนฝ่ายบุคคล"):
+                st.toast(
+                    "บันทึกเวอร์ชันกฎหมายใหม่ลงใน Rule Engine สำเร็จ", icon="✅"
+                )
         else:
-            st.info("ไม่มีประกาศกฎหมายใหม่ที่ส่งผลกระทบต่อร้านของคุณในสัปดาห์นี้")
+            st.info(
+                "🟢 ไม่พบการเปลี่ยนแปลงกฎหมายหรือระเบียบราชการที่ส่งผลกระทบต่อกิจการในขณะนี้"
+            )
 
-    with main_col2:
-        st.subheader("📥 Action Inbox")
-        with st.expander("🚨 พบรายการต้องสงสัย (ธนาคาร)", expanded=True):
-            st.write("**โอน 15,000 ให้ นายเอ (ค่าออกแบบโลโก้)**")
-            st.caption("AI วิเคราะห์: เข้าข่าย 'ค่าจ้างทำของ' ต้องหักภาษี ณ ที่จ่าย 3% (ภ.ง.ด.3)")
-            
-            confirm = st.radio("ยืนยันรายการนี้?", ["รอตรวจสอบ", "ใช่ (สร้าง 50 ทวิ)", "ไม่ใช่ (เพิกเฉย)"])
-            if confirm == "ใช่ (สร้าง 50 ทวิ)":
-                st.success("✅ บันทึกลงปฏิทิน: นำส่ง 450 บาท (15 พ.ย.)")
+    with dash_col2:
+        st.subheader("📥 Smart Compliance Inbox")
+        st.caption("AI ตรวจจับธุรกรรมจาก Statement และคัดกรองภาษีหัก ณ ที่จ่าย")
 
-# 6. License Planner Page
-elif page == "📝 License Planner":
-    st.title("License Planner")
-    st.markdown("ระบบวิเคราะห์และเตรียมใบอนุญาตสำหรับสาขาใหม่")
-    
-    prompt = st.text_area("อธิบายรูปแบบร้านของคุณ", "เปิดคาเฟ่ 60 ตร.ม. ที่เชียงใหม่ จ้าง 5 คน ขายออนไลน์ มีป้ายหน้าร้าน")
-    
-    if st.button("ประมวลผลด้วย AI", type="primary"):
-        with st.spinner("กำลังเทียบเคียงกฎหมายเทศบาลและข้อบังคับ..."):
-            st.success("พบใบอนุญาตที่ต้องใช้ 4 รายการ")
-            
-            st.markdown("### แผนการดำเนินการ (Roadmap)")
-            st.checkbox("1. จดทะเบียนพาณิชย์ (อิเล็กทรอนิกส์) - สำหรับการขายออนไลน์")
-            st.checkbox("2. หนังสือรับรองสถานที่จำหน่ายอาหาร - พื้นที่ 60 ตร.ม.")
-            st.checkbox("3. ยื่นแบบแสดงรายการภาษีป้าย - สำหรับป้ายหน้าร้าน")
-            st.checkbox("4. ขึ้นทะเบียนนายจ้าง สปส. 1-01 - สำหรับพนักงาน 5 คน")
-            
-            st.button("📥 ดาวน์โหลดชุดแบบฟอร์ม (ZIP)")
+        with st.expander("🔍 ตรวจพบรายการเงินโอนต้องสงสัย", expanded=True):
+            st.markdown(
+                "**รายการ:** โอน 50,000 บาท ให้ *บจก. สุขุมวิท พร็อพเพอร์ตี้*"
+            )
+            st.markdown(
+                "**บันทึกช่วยจำ:** `INV-2026-10 Office Rent (ค่าเช่าออฟฟิศ)`"
+            )
+            st.info(
+                "**AI ข้อเสนอแนะ:** เข้าข่าย 'ค่าเช่าอสังหาริมทรัพย์' นิติบุคคลจ่ายให้นิติบุคคล ต้องหัก ณ ที่จ่าย **5% (ภ.ง.ด.53)** เป็นเงิน 2,500 บาท"
+            )
 
-# 7. Hidden Demo Settings Page
-elif page == "⚙️ Demo Settings":
-    st.title("Simulation & Time Travel")
-    st.write("ใช้หน้านี้เพื่อจำลองเวลาเดินหน้าสำหรับการพรีเซนต์ (แสดงให้กรรมการเห็นความสามารถเชิงรุก)")
-    
-    sim_val = st.slider("จำลองเวลาเดินหน้า (วัน)", 0, 90, st.session_state.sim_days)
-    if st.button("อัปเดตเวลาจำลอง", type="primary"):
-        st.session_state.sim_days = sim_val
+            choice = st.radio(
+                "ยืนยันการจัดหมวดหมู่นี้?",
+                ["รอตรวจสอบ", "ยืนยัน (สร้างหนังสือ 50 ทวิ)", "ยกเว้น (เงินประกัน)"],
+                key="rent_confirm",
+            )
+            if choice == "ยืนยัน (สร้างหนังสือ 50 ทวิ)":
+                st.success(
+                    "✅ บันทึก: กำหนดยื่นแบบ ภ.ง.ด.53 ภายใน 15 พ.ย. พร้อมสร้างร่างหนังสือรับรอง 50 ทวิ เรียบร้อยแล้ว"
+                )
+
+# ---------------------------------------------------------
+# 6. Page: Corporate Setup Planner
+# ---------------------------------------------------------
+elif page == "📋 Corporate Setup Planner":
+    st.title("Corporate Setup & License Planner")
+    st.markdown(
+        "วางแผนการจัดตั้งและใบอนุญาตสำหรับผู้ประกอบการ SME และธุรกิจบริการ"
+    )
+
+    user_input = st.text_area(
+        "อธิบายลักษณะธุรกิจของคุณโดยย่อ:",
+        "เปิดบริษัทเอเจนซี่รับทำโฆษณาและการตลาด มีพนักงาน 8 คน เช่าสำนักงานในกรุงเทพฯ มีป้ายชื่อบริษัทหน้าอาคาร และรับงานทั้งในและต่างประเทศ",
+        height=100,
+    )
+
+    if st.button("ประมวลผลข้อกำหนดทางกฎหมาย", type="primary"):
+        with st.spinner("AI กำลังวิเคราะห์ข้อกำหนดตาม DBD, กรมสรรพากร และ สปส..."):
+            st.success("ประมวลผลสำเร็จ: พบ 4 ภาระหน้าที่สำคัญที่ต้องดำเนินการ")
+
+            st.markdown("### ขั้นตอนการปฏิบัติตามกฎหมาย (Sequential Workflow)")
+
+            col_a, col_b = st.columns(2)
+            with col_a:
+                st.checkbox(
+                    "1. จดทะเบียนจัดตั้งนิติบุคคล (กรมพัฒนาธุรกิจการค้า DBD)",
+                    value=True,
+                )
+                st.caption("เอกสาร: บอจ.1, บอจ.5, หนังสือบริคณห์สนธิ")
+
+                st.checkbox(
+                    "2. ขอเลขประจำตัวผู้เสียภาษีอากรและเปิดบัญชีนิติบุคคล",
+                    value=True,
+                )
+                st.caption("หน่วยงาน: กรมสรรพากร / ธนาคารพาณิชย์")
+
+            with col_b:
+                st.checkbox(
+                    "3. ขึ้นทะเบียนนายจ้างและลูกจ้าง (แบบ สปส. 1-01)",
+                    value=False,
+                )
+                st.caption(
+                    "กำหนดเวลา: ภายใน 30 วันนับจากวันที่เริ่มจ้างลูกจ้าง"
+                )
+
+                st.checkbox(
+                    "4. ยื่นแบบแสดงรายการภาษีป้าย (ภ.ป.1)",
+                    value=False,
+                )
+                st.caption(
+                    "หน่วยงาน: ฝ่ายรายได้ สำนักงานเขต (ยื่นภายในเดือน มี.ค.)"
+                )
+
+            st.button("📥 ดาวน์โหลดชุดเอกสารและแบบฟอร์มที่กรอกอัตโนมัติ (ZIP)")
+
+# ---------------------------------------------------------
+# 7. Page: Demo Simulation (Time Travel)
+# ---------------------------------------------------------
+elif page == "⏱️ Demo Simulation (Time Travel)":
+    st.title("Simulation & Fast-Forward Control")
+    st.markdown(
+        "หน้าควบคุมการจำลองเวลาสำหรับคณะกรรมการ เพื่อแสดงการทำงานเชิงรุก (Proactive Triggers)"
+    )
+
+    st.write(
+        f"สถานะเวลาจำลองปัจจุบัน: **เดินหน้าไปแล้ว {st.session_state.sim_days} วัน**"
+    )
+
+    sim_slider = st.slider(
+        "เร่งเวลาไปข้างหน้า (วัน):", 0, 90, st.session_state.sim_days, step=5
+    )
+
+    if st.button("อัปเดตเวลาจำลองเข้าระบบ", type="primary"):
+        st.session_state.sim_days = sim_slider
         st.rerun()
-        
-    st.info("""
-    **คำแนะนำสำหรับการถ่ายวิดีโอ Demo:**
-    1. เริ่มต้นที่ **0 วัน** (ดูหน้า Dashboard ว่าทุกอย่างสีเขียว ปลอดภัย)
-    2. กลับมาหน้านี้ เลื่อนไปที่ **40 วัน** (Dashboard จะขึ้นเตือนสีเหลือง/แดง เรื่องยอดขายถึงเกณฑ์ VAT)
-    3. เลื่อนไปที่ **60 วัน** (Dashboard จะจับประกาศประกันสังคมใหม่ได้)
-    """)
+
+    st.markdown("---")
+    st.subheader("💡 คำแนะนำสำหรับกรรมการและผู้ทดสอบ:")
+    st.markdown(
+        """
+    1. **ที่ 0 วัน (6 ต.ค.):** ยอดขายสะสมยังต่ำกว่า 1.8M สถานะในหน้า Dashboard จะเป็นสีเขียว (ปลอดภัย)
+    2. **เลื่อนไปที่ ~45-50 วัน:** ยอดขายสะสมจะแตะเกณฑ์ VAT Radar จะเปลี่ยนเป็นสีเหลือง/แดง พร้อมคำนวณวันสิ้นสุดการยื่นแบบ ภ.พ.01 อัตโนมัติ
+    3. **เลื่อนไปที่ ~60 วันขึ้นไป (เข้าสู่ ธ.ค.):** Regulation Watch จะตรวจพบการประกาศปรับเพดานประกันสังคม และคำนวณผลกระทบของต้นทุนต่อบริษัททันที
+    """
+    )
